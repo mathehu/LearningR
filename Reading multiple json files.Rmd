@@ -1,0 +1,37 @@
+---
+title: "Reading multiple json files"
+output: html_notebook
+---
+
+# Option 1 json files as dataframe
+```{r}
+library(purrr)
+library(tidyverse)
+library(jsonlite)
+
+path <- "./your_path"
+
+path <- "C:/R/PriorizR_Datenanalyse/Logs"
+
+files <- dir(path, pattern = "*.json")
+
+data <- files %>%
+  map_df(~fromJSON(file.path(path, .), flatten = TRUE))
+
+head(data)
+```
+
+# Option 2 json files as list
+```{r}
+library(rjson)
+library(parallel)
+
+cl <- makeCluster(detectCores() - 1)
+
+json_files<-list.files(path ="your/json/path",pattern="*.json",full.names = TRUE)
+
+json_list<-parLapply(cl,json_files,function(x) cl =     rjson::fromJSON(file=x,method = "R"))
+
+stopCluster(cl)
+
+```
