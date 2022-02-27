@@ -1,0 +1,866 @@
+---
+title: "R cheatsheet"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+  word_document: default
+---
+# **Common packages**
+```{r}
+library(tidyverse)
+library(lubridate)
+library(magrittr)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+library(jtools)
+library(ggstance)
+library(huxtable)
+```
+
+# **Checking directories**
+```{r}
+#dir()
+# getwd()
+# setwd() ##setwd("~/R/DataScienceIntro/datasciencecoursera")
+# setwd("../") ##moving up one level of the directory
+# setwd("./data")
+
+file.exists("directoryName") ##check to see if directory exists -logical
+dir.create("directoryName") ##will create directory if it doesn't exist
+if(!file.exists("data")) {     ##same as above, checks if directory exists, otherwise creates one
+  dir.create("data")
+}
+```
+
+
+# **Getting data**
+```{r}
+     ##download file from internet
+# fileUrl <- "https://data.source.com/...."
+# 
+# download.file(fileUrl, destfile = "./data/filename.csv", method = "curl") ##"curl" only needed when downloading https data using Mac, on Windows default should work 
+
+list.files("./data")
+
+dateDownloaded <- date()    ##record for purpose of documentation
+
+## Reading local files
+read.table()  ###main function for reading data into R, reads data into RAM - big files might need to be split
+read.table("./data/filename.csv", sep = ",", header = TRUE)
+
+read.csv() ##as read.table but automatically assigns sep = ",", header = TRUE
+read.csv('file', stringsAsFactors = F, header = T)
+read.csv2()
+
+j17i <- read.csv('jan17Items.csv') %>%
+  mutate(
+    Time = ymd_hms(Time)
+  )
+
+j17w <- read.csv('jan17Weather.csv', sep = '\t') %>%
+  mutate(
+    date = ymd_hms(date)
+  )
+
+read.xlsx()
+nameData <- read.xlsx("./data/filename.xlsx", sheetIndex=1, header=TRUE)
+read.xlsx2()   ##faster than read.xlsx but more unstable when reading subsets of rows
+
+read_excel("") ##load library(readx1) first
+
+##XLConnect package has more options for writing and manipulating Excel files
+##Check out XLConnect vignette to start
+
+##important parameters
+quote ##tell R whether there are any quoted values, quote="", means no quotes
+na.strings ## set the character that represents a missing value
+skip ##number of lines to skip before starting to read
+nrows ##how many rows to read of the file (e.g. nrows=10 reads 10 lines)
+
+colIndex <- 2:3  ##reading only columns 2 to 3
+rowIndex <- 1:4
+read.xlsx("./data/fileName.xlsx", sheetIndex=1, colIndex=colIndex, rowIndex=rowIndex)
+
+library(jsonlite)
+jsonData <- fromJSON("F:\\Projekte\\DWH\\Auswertungen\\Psychotherapie\\Clearingstelle\\PriorizR_Datenanalyse\\Logs\\01.01.2021.json")
+names(jsonData)   ##Looking at names of variables in the df
+names(jsonData$Gruppenfähigkeit)
+head(jsonData)
+
+fromJSON()
+
+```
+
+# **Loading data**
+```{r}
+data() ##load data(frame), i.e. load(mtcars)
+
+```
+## *Transpose a dataframe*
+```{r}
+library(data.table)
+df_t <- transpose(df)
+rownames(df_t) <- colnames(df)
+colnames(df_t) <- rownames(df)
+
+tibble()    ##from dataframe to table structure
+```
+
+# **Looking at data**
+```{r}
+#strg-shift - c = Auskommentieren von mehreren Zeilen
+
+object.size(df)  ##Größe des df
+print(object.size(df), units = "Mb") ##Größe des df in Mb
+
+cran ##just typing name of dataset shows entire dataset
+str() ##overview of the structure of the data
+str(mooc1$unformatted_date) ##uses str on only one column
+class()
+dim()
+nrow()
+ncol()
+object.size() ##space of dataset in memory
+names() ## column (i.e. variable) names
+head() ##to preview the top of the dataset, default six rows; more when specified, eg. head(plants, 20)
+tail() ####to preview the end of the dataset
+View(noNA)    ### shows df as table in upper panel
+unique()    ### list of all different unique values in the vector, dataframe, etc.
+abs(x)    ## Betrag einer Zahl berechnen
+
+n_distinct(trd$site_name) ##how many unique elements are in a variable/column
+
+slice_sample(mooc1, n=100)  ##takes a random sample of the data sate with n rows.
+
+table(df$var1, useNA = "ifany")   ##displays a column in a table format and shows NAs, if there are any
+table(df$var1, df$var2) ##creates 2-dimensional table
+table(df$var1 %in% c("value"))   ##returns a logical count of a particular value or values
+table(df$var1 %in% c("value", "value1"))
+
+##%in%##
+# %in%  ##logical checks whether a value is in a vector, z.B. %in% v1 Result: T or F
+!3 %in% v1 ##checks whether 3 is NOT in v1  
+df5 <- j17i %>%
+  filter(LineItem %in% c('Glass Mug', 'Gift Cards')) ##filters observations containing Glass Mug and Gift Cards
+CustsThatPurchaseHighCostItems <- j17i %>%      ##filter names of customers who purchased high cost items
+  filter(CarholderNames %in% highCostItems$CardholderName)
+
+summary(df) ##overview of how each variable is distributed with descriptive statistics
+summary(df$Price)
+summary(df[, c('Price', 'Cost')])
+summary(factor(df))   ##factor coerces string into numeric and returns number of observations for Price and Cost.
+table(plants$Active_Growth_Period) ##how many times each value actually occurs in the data
+```
+
+# **Manipulating data frames**
+
+## *Creating Sequences*
+```{r}
+vec <- seq(1, 10, by=2) ; vec ##creating a sequence with numbers between 1 and 10 in steps of 2
+vec1 <- seq(1, 10, length=3) ; vec1  ##creating a sequence of 3 numbers between 1 and 10
+vec2 <- c(1,3,8,25,100); seq(along = vec2)  ##Creates a sequence of the same length as vec2
+```
+
+## *Sorting and ordering columns*
+```{r}
+
+sort(x4)                  ##arranges column by value
+sort(x4var1, decreasing = TRUE)   ##arranges column by value in decreasing order
+
+x[order(x$var1), ] ##Orders an entire df by the named column 
+x[order(x$var1, yx$var2), ] ##Orders an entire df by the var1 first and var2 second
+
+library(plyr)
+arrange(x, var1)   ##Orders an entire df by the named column 
+mooc1 %>%  arrange(desc(revenue)) %>% head(n=25) ##arrange the revenue colunn by descending value and show the top 25 rows
+
+## *Order data using the forcats pacakge*
+
+library(forcats)
+fct_inorder() ##orders values by first appearance
+fct_infreq() ##orders values by frequency
+fct_inseq()   ####orders values by numeric value
+fct_relevel() ###give specific order to values
+fct_lump()  ##choose number of levels to display, lump others together in one level
+```
+
+## *Accessing parts of a document*
+```{r}
+ variable[[1]]  ##prints the first part of variable
+ 
+variable [[1]] [[1]] ##prints the first element of the first part of the variable
+```
+
+## *Referencing and subsetting vectors by location*
+```{r}
+V1[1]  ##gives me first value of df
+V1[1:5]
+V2 <- v1[c(1,5)]  ##creating new vector with elements of v1
+
+## Referencing and subsetting dataframes by location
+dfw[1:5, 1:3]
+dfw[1:5, ]
+dfw[.1]   #selecting only the first column
+dfw1 <- dfw[1:5, c(1, 3)] ### selecting rows 1 to 5 but only columns 1 and 3 and creating new df with subset of dfw
+ldf <- df[df$Price > 15, ]   ##creates new df, which contains only rows where the Price > 15
+brdf <- df[df$Category %in% c("Beef", "Rice"), ]   ####creates new df, which contains only rows where category is either Beef or Rice
+```
+
+## *Referencing and subsetting vectors by name*
+```{r}
+library(dplyr)
+dfw$date
+dfw[1:5, c('date', 'time')]
+df$var2 <- df$var1 %in% c("value1", "value2")  ##creates new column/variable with only the values 1 and 2
+table(df$value2)  ##shows instances of df$value2 as a T/F statement
+
+df$BarCode <- NULL  ## removing a specific column from the df
+
+##removing data frame##
+rm("mydf") 
+
+tbl_df()  #creates a 'data frame tbl' that creates more informative and compact outputs when printed to console
+
+
+##from here on commands from the dplyr Package!!!!!!!##
+
+## select -> reduces widths of df and only returns the columns you want##
+select() ##Select (and optionally rename) variables in a data frame, using a concise mini-language that makes it easy to refer to variables based on their name (e.g. a:f selects all columns from a on the left to f on the right)
+select(cran, ip_id, package, country) ##selects the columns ip_id, package, country
+select(cran, r_arch:country) ##selects all columns from r_arch to country)
+select(cran, -time) ##select columns without "time"
+select(cran, -(X:size))  ####select without columns from "x" to "size"
+
+mooc1_states <- mooc1_states %>% 
+  select(-postal_code, -country_name)
+mooc1_states <- mooc1_states %>% select(zip, state_province) ## use `select()` to reorder the columns and drop `state_province_code`. First, put variables in the order you want. Then, omit the ones you don’t want. Thus, we drop `state_province_code` just by not mentioning it in the `select()` function.
+
+package == "swirl" ## returns a vector of TRUEs and FALSEs. filter() then returns only the rows of cran corresponding to the TRUEs.
+
+##filter -> filters out/reduces as many rows/observations as you want, the save the filtered version as a new df##
+filter()  #selecting subset of rows#
+filter(cran, r_version == "3.1.1", country == "US") ##You can specify as many conditions as you want, separated by commas.
+higCostAndPice <- filter(j17i, Cost > 11 & Price > 13) ##filters all rows where Cost >11 and Price > 13
+filter(cran, r_version <= "3.0.2", country == "IN") ##works with all logical comparisons, eg. <=
+filter(cran, country == "US" | country == "IN") ##works with all logical comparisons, eg. | or
+filter(cran, package == "swirl")   ##  to select all rows for which the package variable is equal to "swirl"
+
+# returning only distinct items
+df7 <- j17i %>%
+  filter(cmt >40) %>%  ##filter only observations > 40
+  
+products %>% filter(year==2019, month=='Aug', parent_name=='Cold Dispensed Beverage')
+
+candy1 <- products %>% filter(parent_name=='Candy/Gum', year!=2017)  ##filter by all years except for 2017
+
+##to order the rows of a data set according to the values of a particular variable
+arrange()  
+  select(cran, r_arch:country)   ##select() all columns from size     through ip_id and store the result in cran2
+  arrange(cran2, ip_id) ##orders the ROWS of cran2 so that ip_id is in ascending order
+arrange(cran2, desc(ip_id))## arrange in descending order
+arrange(cran2, package, ip_id) ##arrange by two variables
+arrange(cran2, country, desc(r_version), ip_id)
+
+allItems <- allItems %>%
+  arrange(CardholderName, Time)  ##sort df first by CardholderName and then by Time
+
+allItems <- allItems %<>%  ##using a two-way pipe
+  arrange(desc(CardholderName), Time) ##ordering CardholderName by descending, Time by ascending
+```
+## *Reshaping datasets*
+
+### *Melting dataframes*
+Variables in a data set are turned into "ID")" variables that will be columns and "measures" that will be values in columns
+```{r}
+library(reshape2)
+dfmelt <- melt(df, id=c("var1", "var2", "var3"), measure.vars=c("measure1", "measure2"))
+head(dfmelt,  n=3)
+```
+### *Casting dataframes*
+```{r}
+dfcast <- dcast(dfMelt, ID ~ variable)  ##dcast transformes/recasts a df and uses the ID variable as rows and the "variable" as columns.
+dfcast <- dcast(dfMelt, ID ~ variable, mean) ##same as above and calculates the mean for each variable
+```
+### *Pivoting df*
+library(tidyr)
+```{r}
+
+##Pivot longer -> collapse various column names into one column, needs to duplicate, i.e. date, many times
+dailyLong <- daily %>%
+  pivot_longer(cols = c(avgCost, maxPrice, transactionQuantity)) ##indicate which columns to use
+
+dailyLong <- daily %>% ##same as above but gives new columns specific names
+  pivot_longer(cols = c(avgCost:transactionQuantity)
+               , names_to ='metrics'
+               , values_to = 'vals')
+
+###Pivot_wider
+dailyWide <- dailyLong %>%
+  pivot_wider(names_from = metrics, values_from = vals)
+```
+
+## *Creating categorical or factor variables, i.e. calculating quantiles*
+```{r}
+ScoreQuantile <- cut(PRNeu4$Clearingscore, breaks = quantile(PRNeu4$Clearingscore)) ##Berechnung von Quartilen/Quantilen
+table(ScoreQuantile)
+
+library(Hmisc)
+ScoreQuantile1 <- cut2(PRNeu4$Clearingscore, g = 4) #Alternative Berechnung von Quartilen/Quantilen, benötigt Package Hmisc
+table(ScoreQuantile)
+
+df2 <- mutate(df1, newcol = cut2(var1, g=4))  ##Creates new quantile variable and appends it to df
+table(df2$newcol)
+
+quantile(df$var1, na.rm=TRUE)     ##quantiles with NAs removed
+quantile(df$var1, probs=c(0.5,0.75,0.9))  ##quantiles with specific values
+
+df$var1f <- factor(df$var1)  ##transforming var in factor var
+
+```
+
+## *Selecting/stacking rows and columns*
+```{r}
+library(tidyverse)
+
+# changing the class of a variable
+mooc1_states$postal_code2 <- as.integer(mooc1_states$postal_code) ##changing the variable postal_code to an integer
+
+# selecting only certain columns or rows
+df[1,]  ##selecting only the first row
+df[, 1] ##selecting only the first column
+df[, "Columname"]  ####selecting a column by name
+df[1:10, "Columname3"]  ##selects the first 10 rows of the named column
+df[(x$var1 >= 3 & x$var3 > 10), ] ## selects all rows from variable 1 that are smaller or equal to 3 AND all var$3 rows >10
+df[(x$var1 >= 3 | x$var3 > 10), ] # selects all rows from variable 1 that are smaller or equal to 3 OR all var$3 rows >10
+df[which(x$var3 > 10), ]  ##selects all rows of var 3 > 10 without NAs!!
+df <- df[df$var1 %in% c("value2", "value2"),] ##returns only rows with the named instances
+
+# selecting only certain elements of a string variable
+str_sub(1,5)   ##selecting only the first 5 elements of each cell in the column
+mooc1_states$postal_code2 <- mooc1_states$postal_code %>% str_sub(1,5) ##doing the above and assigning the selected sting elements to a new df
+
+library(dplyr)
+library(magrittr)
+
+?bind_rows ##stacking different dfs together
+allItems <- bind_rows(df1, df2, df3)
+
+?bind_cols
+allItems2 <- bind_cols(df1, df2, df3)
+```
+
+## *Use first row as column header*
+```{r}
+header.true <- function(WZ_Neu2) {
+  names(WZ_Neu2) <- as.character(unlist(WZ_Neu2[1,]))
+  WZ_Neu2[-1,]
+}
+WZ_Neu2 <- WZ_Neu2 %>%
+header.true()
+```
+
+## *Creating new columns and rows*
+```{r}
+
+PRNeu5$ScoreQuant = ScoreQuantile1 ##adding ScoreQuant Column to PRNeu% using vector ScoreQuantile1   
+PRNeu5$ScoreQuant <-  ScoreQuantile1 ##adding ScoreQuant Column to PRNeu% using vector ScoreQuantile1
+df1$addclumn <- str_length(df1$addcolumn)  ##creates a new column "addcolumn" and fills it with length of strings (str_length)
+
+## Creating a binary variable
+
+df$var2 = ifelse(df$var1 < 0, TRUE, FALSE)  ##creates column with 0 and 1s respective to T/F
+table(df$var2, df$var1 <0)
+
+## Adding a vector/column to a df
+y <- cbind(x, var14)  ##"column binds"/adds a vector to the RIGHT of a df
+y <- cbind(var14, x)  ##"column binds"/adds a vector to the LEFT of a df
+
+Y <- rbind(x, obs1)   ##rowbinds observation to the end of a df
+y <- rbind(obs, x)   ##rowbinds observation at the beginning of a df
+```
+
+## *Renaming columns*
+```{r}
+library(dplyr)
+j17i_2 <- j17i_2 %>%    ##renaming the long column labels into cmu and cmt
+  rename(cmu =contMarginPerUnit, cmt =contMarginTotal)
+
+library(tidyverse)
+mooc1_states <- mooc1_states %>% 
+  rename(zip = postal_code2) ##renames postal_code2 to zip
+```
+
+## *Relocating columns in a df*
+```{r}
+j17i_2 <- j7i_2 %>%
+  relocate(cmu, cmt, .after = Quantity)  ##moving teh cmu and cmt columns to the right of the quantity column
+
+# Place Numeric columns  before character columns
+numFirst <- j17i_2 %>%
+  relocate(where(is.numeric), .before = where(is.character))
+```
+
+## *Gruppieren und Summe der Spalten/Reihen*
+```{r}
+
+colSums(is.na(df))   ## Takes sums of NAs across columns
+rowsum(is.na(df))    ## Takes sums of NAs across rows
+all(colSums(is.na(df)) == 0)  ##Logical Statement
+
+rowSums(trd[,7:13]) # This returns the sum of the last six columns for every row.
+sum(rowSums(trd[,7:13])) # This adds up the prior values. Should equal 564--1 for each row.
+
+Spaltensumme <- function(MFBer, removeNA = TRUE) {
+  nc <- ncol(MFBer)                  ##figure out number of columns
+   <- numeric(nc)    ##create vector(Spalte) that stores the means for the number of columns
+  for(i in 1:nc) {
+    sums[i] <- sum(MFBer[, i], na.rm=removeNA)
+  }
+    sums
+}
+
+month <- df1 %>% group_by(month) %>% summarize(sum_revenue = sum(revenue)) ##Kreiert neues df (Tabelle), gruppiert nach Monat, mit Summe von Spalten in neuer Spalte
+print(month)
+
+year_month <- df1 %>% group_by(year, month) %>% summarize(sum_revenue=sum(revenue))  ##gruppieren nach Jahr und Monat
+print(year_month)
+```
+
+# **Missing values NAs**
+```{r}
+na.strings ## set the character that represents a missing value
+
+sum(is.na(df$var1))  ##shows how many NAs in a column
+any(is.na(df$var1))  ##are there any NAs - logical statement: T/F
+all(df$var1 > 0)     ##logial statment with answer T/F
+
+
+df2 <- df%>%
+  filter(!is.na(Price)) ##filter all NAs from a column
+summary()  ##also returns number of NAs per column
+
+is.na(c(3, 5, NA, 10)) ##finding out which value for NA is used
+  bad <- is.na(x)
+  x[!bad]     ##selects all elements of x that aren't NAs
+filter(cran, !is.na(r_version)) ## gets all rows from a column without NAs
+
+df[which(x$var3 > 10), ]  ##selects all rows of var 3 > 10 without NAs!!
+
+sort(x$var1, na.last=TRUE)  ##sorts column and puts all NAs at the end
+
+colSums(is.na(df))   ## Takes sums of NAs across columns
+rowsum(is.na(df))    ## Takes sums of NAs across rows
+all(colSums(is.na(df)) == 0)  ##Logical Statement
+
+## Impute missing values
+?ifelse
+df3 <- df %>%
+  mutate(
+    Tax = ifelse(is.na(Tax), mean(Tax, na.rm =T), Tax)
+  , TotalDue = NetTotal + Tax
+)
+
+## install dplyr and magrittr packages
+library(dplyr)
+library(magrittr)
+
+## NAs across multiple vectors
+  ##Vector y has NAs, Vector x has NAs
+
+  good <- complete.cases(x, y)
+  x[good]  ##contains no NAs
+  y[good]
+
+## NAs across dataframes
+airquality[1:6, ]     ## I only want rows 1 to 6 from airquality dataframe, but without NAs
+good <- complete.cases(airquality)
+airquality[good, ][1:6, ]
+
+```
+
+# **Chaining functions together**
+```{r}
+###using the pipe operator: %>% -> this allows you to use add/use different functions in the same step
+df1 <- j17i %>%
+  filter(Cost > 11) %>%
+  select(Cost, Price)
+
+###using the two-way pipe operator
+## using a two-way pipe operator, performs the function and puts the result back into the df
+allItems <- allItems %<>%  
+  arrange(desc(CardholderName), Time) ##ordering CardholderName by descending, Time by ascending
+```
+
+# **Joining dfs together**
+```{r}
+    ## first step is to identify a column on which to match the data - the primary key
+library(dplyr)
+library(magrittr)
+library(lubridate)
+
+n_distinct() ##checking whether all elements of a vector are unique, count the number of unique values in a set of vectors
+
+# Joining the dfs
+## Overview of joining options:
+   ##inner_join(): only return the records which matched between the two data frames.
+   ##left_join(): returns all of the rows from the f irst table and any matching rows from the second table. A left join in R will NOT return values of         the second table which do not already exist in the first table.
+   ## right_join(): equivalent to left_join
+   ##full_join(): includes all rows in the first dataframe or the second dataframe
+
+  # left_join only keeps information in the left df, if there are different numbers of observations in the dfs
+dailyLeft <- daily %>%
+  left_join(j17w, by = 'date')  # join by primary key
+
+mooc1_etl <- left_join(mooc1, mooc1_states, by='zip') #alternative to line above: joinin mooc1 with mooc1_states by the matched column zip
+
+# right_join only keeps information in the right df
+dailyRight <- daily %>%   
+  right_join(j17w, by = 'date')
+
+# inner join only keeps observations that are matched in both dfs
+dailyInner <- daily %>%   
+  inner_join(j17w, by = 'date')
+
+# full join keeps all observations in both dfs
+dailyFull <- daily %>%   
+  full_join(j17w, by = 'date')
+
+# Removing outliers
+outliers <- mooc1 %>% filter(product_id == 17628) ## Creating a new df with only one product from the product_id column. see "==" to not assign 17625 to "product_id" but to tell T ro filter for 17625.
+mooc1_clean <- mooc1 %>% filter(product_id != 17628) ##Creating a new df with all products in product_id except "!=" product 17628, thus removing outliers
+summary(mooc1_clean$revenue) ##check the distribtion of the variable
+```
+
+# **Visualising data**
+```{r}
+hist(df$Price)
+boxplot(df$Price)
+plot(df$Price)     ##Scatterplot
+plot(dfw$TMIN, dfw$TMax)  ##Setting the names for the x and y axes 
+plot(dfw$TMAX, type = 'l')   ## making a line chart, setting type: options under ?plot
+plot(dfw[,c('TMIN', 'TMax', 'Rain')])   ###plotting the values of these three columns for comparison
+plot(cars, xlim = c(10, 15)) ##Plot cars while limiting the x-axis to 10 through 15.
+
+?par ##Set or Query Graphical Parameters
+?points ##change the shape of the symbols in the plot
+ 
+##ggplot
+###Examining one variable
+ggplot(df1, aes(x=revenue)) +   ##aes means aesthetics (strange name)
+  geom_histogram()
+
+ggplot(df1, aes(x=revenue)) + 
+  geom_histogram(binwidth = .25) +         ##binwidth adjusts the widths of categories on the x axis
+  coord_cartesian(xlim = c(-100, 100), ylim = c(0, 5000)) + ##changes the size of x and y coordinates 
+  labs(title = 'Histogram of Revenue')    ##adds label/title to the diagram
+  
+###Examining 2 variables together
+  ggplot(df1, aes(x=revenue, y=gp_margin)) + 
+  geom_point() + 
+  coord_cartesian(xlim=c(0, 30), ylim=c(-1,1)) + 
+  labs(title='Scatter Plot of revenue & gross profit margin')
+  
+  ggplot(df1, aes(x=factor(year), y=revenue)) +  ##x = factor(year) zeigt die Daten auf der x Achse nach Jahren
+  geom_col() +                                   ##geom_col -> Bar Chart
+  labs(title = 'Bar Plot-revenue by year')
+  
+  candy2 <- products %>% filter(parent_name=='Candy/Gum', year==2019)  ##combining the use of "filter" and bar chart
+  ggplot(candy2, aes(x=month, y=percent_chng_revenue)) + 
+  geom_col(aes(fill=month))                       ##fill = month -> different colour of every column (months)
+  
+  ggplot(df1, aes(x=factor(year), y=revenue)) + 
+  geom_boxplot() +                               ##boxplot graph with (-10, 10) limits to the coordinates
+  coord_cartesian(ylim=c(-10, 10)) + 
+  labs(title = 'Box Plot-revenue by year')
+  
+  ggplot(df1, aes(x=factor(year), y=revenue)) + 
+  geom_violin() +                                ##Violin plot, like a boxplot,but shows the distribution of the data by the shape of the "box". 
+  labs(title = 'Violin Plot-revenue by year') + 
+  coord_cartesian(ylim=c(-10,10)) +
+  stat_summary(fun=median, geom='point', size=2, color='red') +   ##inserts median as a red point
+  stat_summary(fun=mean, geom="point", shape=23, size=2)          ##inserts mean as a diamond shape
+  
+  ggplot(month, aes(x=month, y=sum_revenue)) + 
+  geom_col(aes(fill=month)) +                                 ##adds colours to months columns
+  scale_y_continuous(breaks=seq(0,700000,100000)) +           ##adds gridlines (measure on y axis) and labels to (size of interval between labels on y axis); breaks adds starting points to gridlines (0, ...)
+  labs(title='Sum of Revenue by Month')
+  
+  ggplot(year_month, aes(x=month, y=sum_revenue)) + geom_line(aes(group=year))    # Line plot of sum of revenue by month, grouped by year
+  
+  ggplot(year_month, aes(x=month, y=sum_revenue, color=factor(year))) + ##Line plot of sum of revenue by month, grouped by year and year as factor
+  geom_line(aes(group=factor(year))) +                                  ##the group= function creates lines for each year
+  geom_point()                                                ##add a second plot as overlay with the data points
+  
+  
+  ggplot(candy1, aes(x=month, y=tot_revenue, color=year)) + 
+  geom_line(aes(group=year)) + 
+  labs(title='Candy: revenue by year') 
+  
+  ggplot(WZges_PR_g0, aes(x=Clearingscore, y=WZ_tot)) +  ##visualisiert Quantile von Variablen 
+  geom_quantile()
+  
+###Visualising selected variables/columns
+  trd %>%
+  pivot_longer(cols = 7:13, names_to = 'parent', values_to = 'pctSales') %>% ##select columns, pivot table, assig axes
+  mutate(parent = abbreviate(parent, 10)) %>%  ##shorten display name of axes to 10 units
+  ggplot(aes(x = parent, y = pctSales)) +
+  geom_boxplot()
+  
+  trd %>%
+  pivot_longer(cols = 7:13, names_to = 'parent', values_to = 'pctSales') %>%
+  mutate(parent = abbreviate(parent, 6)) %>%
+  ggplot(aes(x = parent, y = pctSales)) +
+  geom_boxplot() +
+  # facet_grid(~lat + long)
+  facet_wrap(facets = vars(lat, long), nrow = 2)   ##shows a grid of boxplots in 2 rows, divided by lat and long
+  
+  ###To get a quick visualization of all the pairwise scatterplots, you can creat a pairplot.
+  pairs(trd %>% select(where(is.numeric)), cex = .1) # See the help documentation for adding in coefficients and histograms.
+  
+  ###Visualising a correlation matrix
+  corrplot(ctrd    
+         , method = 'color' # I also like pie and ellipse
+         , order = 'hclust' # Orders the variables so that ones that behave similarly are placed next to each other
+         , addCoef.col = 'black'
+         , number.cex = .6 # Lower values decrease the size of the numbers in the cells
+         )
+```
+
+# **Descriptive Statistics**
+```{r}
+##Darstellen von Häufigkeiten einer Variable 
+df = split(df$count, df$variable)
+lapply(df, sum)
+
+##Berechnen unterschiedlicher Werte in einem df
+
+#tapply(vector, index, function)
+tapply(df$count, df$index, sum)
+
+sapply(df, sum)
+
+ddply(df, .(ID), summarize, sum=sum(count))  ##summarizes the values of "ID" ->.() means the variable names need no "".
+
+##Durchschnitt der Spalten
+colMeans() ##Means of columns
+
+columnmean <- function(y, removeNA = TRUE) {
+  nc < ncol(y)                  ##figure out number of columns
+  means <- numeric(nc)    ##create vector(Spalte) that stores the means for the number of columns
+  for(i in 1:nc) {
+    means[i]<- mean(y[, i], na.rm=removeNA)
+  }
+    means
+}
+
+mean(x, na.rm = TRUE)
+
+##Crosstab
+df <-  xtabs(Freq ~ Gender + Admit, data=DF) ##displays Freq values by Gender(rows) and Admit (columns) from the specified df
+
+df = xtabs(freq ~., data= df)  ##Uses the vector freq and breaks it down by all other variables in the given df
+
+##Correlation
+cor(trd[,c('totalRevenue', 'Fuel_py1')])  ##correlating two columns in a df
+ctrd <- cor(trd %>% select(where(is.numeric)))  ##correlating all numeric variables in a df
+
+corrplot(ctrd    ##Visualising a correlatin matrix
+         , method = 'color' # I also like pie and ellipse
+         , order = 'hclust' # Orders the variables so that ones that behave similarly are placed next to each other
+         , addCoef.col = 'black'
+         , number.cex = .6 # Lower values decrease the size of the numbers in the cells
+         )
+``` 
+# **Regression**
+```{r}
+##Regressionslinie in Scatterplot einfügen
+ggplot(trd, aes(x = Fuel_py1, y = totalRevenue)) +
+  geom_point() +
+  stat_smooth(method = 'lm')  ##Einfügen der Regressionslinie
+
+##Daten zur Regressionslinie
+lm1 <- lm(totalRevenue ~ Fuel_py1, data = trd)
+summary(lm1)
+
+lm1 <- lm(totalRevenue ~ Fuel_py1, data = trd)
+lm2 <- lm(totalRevenue ~ Juicetonics_py1, data = trd)
+export_summs(lm1, lm2) # Create a nice looking table for comparing the regression results
+
+##use the jtools package to plot the coefficients and standard errors
+plot_summs(lm1, lm2)
+
+ggplot(trd, aes(x = Fuel_py1, y = totalRevenue)) +
+  geom_point() +
+  expand_limits(x = c(0,1)) +     ##Sichtbarkeit der ganzen x Achse
+  stat_smooth(method = 'lm', fullrange = T) ##fullrange zeigt die Gerade über die ganze x Achse hinweg
+
+##Visualisierung und Vergleich der Regressionsgeraden 2er unabhängigen Variablen
+trd %>% 
+  pivot_longer(cols = c(Fuel_py1, Juicetonics_py1), names_to = 'parent_name', values_to = 'pctRev_py1') %>%
+  ggplot(aes(x = pctRev_py1, y = totalRevenue)) +
+  geom_point() +
+  stat_smooth(aes(color = parent_name), method = 'lm', fullrange = T, se = F)
+
+##Exploration von Residuals
+resids <- trd %>%
+  select(Fuel_py1, totalRevenue) %>%
+  mutate(fittedRevenue = -11510 + 35097*Fuel_py1  ##neue Variable aus Intercept plus Neigung*Unabängige Variable
+         , residuals = totalRevenue - fittedRevenue) #neue Variable
+head(resids)
+
+lm1 <- lm(totalRevenue ~ Fuel_py1, data = trd)
+summary(lm1)
+
+# Create a dataframe with residuals and identifying information
+resids2 <- trd %>%
+  select(site_name, quarter, Fuel_py1, totalRevenue)
+resids2$fittedRevenue = lm1$fitted.values
+resids2$residuals = lm1$residuals
+
+# Get the five best performing store/quarter combinations
+best <- resids2 %>%
+  arrange(desc(residuals)) %>%
+  .[1:5,]
+# Get the five worst performing store/quarter combinations
+worst <- resids2 %>%
+  arrange(residuals) %>%
+  .[1:5,] %>%
+  arrange(desc(residuals))
+
+# Combine the five best and worst into one dataframe and display them
+bestWorst <- bind_rows(best,worst)
+bestWorst
+
+# Create a dataframe of new observations
+newObservations <- data.frame(storeName = c('1', '2', '3', '4', '5')
+                              , Fuel_py1 = c(.3, .35, .4, .5, .55))
+# Add a new column of predicted values
+newObservations$predictedRevenue = predict(lm1, newObservations)
+# Display the dataframe in this notebook
+newObservations
+
+##Multiple regression
+lm3 <- lm(totalRevenue ~ Fuel_py1 + Juicetonics_py1, data = trd)
+export_summs(lm1, lm2, lm3)
+
+##Correlation plot
+ctrd <- cor(trd %>% select(where(is.numeric)))
+corrplot(ctrd
+         , method = 'color' # I also like pie and ellipse
+         , order = 'hclust' # Orders the variables so that ones that behave similarly are placed next to each other
+         , addCoef.col = 'black'
+         , number.cex = .6 # Lower values decrease the size of the numbers in the cells
+         )
+
+plot_summs(lm1, lm2, lm3)
+
+##Creating dummy variables
+data.frame('quarterNoYear' = c('First', 'Second', 'Third', 'Fourth') ##1st year values are 0,0,0,0, added by default
+           , 'quarterNoYearSecond' = c(0,1,0,0)
+           , 'quarterNoYearThird' = c(0,0,1,0)
+           , 'quarterNoYearFourth' = c(0,0,0,1))
+
+##run a simple regression of totalRevenue on quarterNoYear column, which as a data type of factor.
+lm6 <- lm(totalRevenue ~ quarterNoYear, data = trd)
+summary(lm6)
+
+##create a manual comparison by calculating the mean value of totalRevenue for each quarter.
+trd %>%
+  group_by(quarterNoYear) %>%           ##average revenue by quarter of year
+  summarize(meanRevenue = mean(totalRevenue)) %>%
+  ungroup()
+
+##Multiple regression with dummy variable (quarterNoYear)
+lm7 <- lm(totalRevenue ~ Fuel_py1 + Juicetonics_py1 + ColdDispensedBeverage_py1 + quarterNoYear, data = trd)
+summary(lm7)
+```
+
+
+# **Creating calculated fields**
+```{r}
+mutate()  ##allItemsthe value of one or more | variables already in a data set
+mutate(cran3, size_mb = size / 2^20)    ##to add a column called size_mb that contains the download size in  megabytes
+mutate(cran3, size_mb = size / 2^20, size_gb = size_mb / 2^10) ##multiple columns (also building on each other) can be created in the same line
+j171_2 <- j17i %>%    ##create two new columns contMarginPerUnit and contMarginTotal based on two different
+  mutate(             ## calculations using the values in the Price, Cost and Quantity columns
+    contMarginPerUnit = Price - Cost#
+    , contMarginTotal = contMarginPerUnit * Quantity
+  )
+  
+  select(LineItem) %>%  ##select only this column
+  distinct() ##return each distinct value only once
+df7
+
+summarize()   ##collapses the dataset to a single row
+summarize(cran, avg_bytes = mean(size)) ##yield the mean value of the size variable. label of the result 'avg_bytes' was chosen by author
+##summarize() can give you the requested value FOR EACH group in your dataset
+```
+
+# **Loops**
+```{r}
+x <- c("a", "b", "c", "d")
+for(i in 1:4) {
+  print(x[i])
+}
+
+for(i in seq_along(x)) {             ##loops through the length of the vector
+  print(x[i])
+}
+
+for(i in seq_len(nrow(x))) {                  ##nested loops, here to print all elements of a matrix
+  for(j in seq_len(ncol(x))) {
+    print(x[i, j])
+  }
+}
+```
+
+# **Manipulating character data**
+```{r}
+# library(stringr)
+# str_length(v1) ##length of all strings in v1
+# str_to_title(v1)   ##capitalises the first letter in every word
+# str_to_lower()   #makes all words start with lower letters, i.e. when the same words are sometimes written with small letters and sometimes with capitals
+# str_to_upper  ##capitalises all letters
+# str_detect(df, 'His')  #checks whether the word 'his' is in the df; case sensitive!
+# j171$kabob <- str_detect(j17i$lineItemLower, 'kabob') ##creates column "kabob' with T or F whether kabob is present
+# str_replace()
+# str_replace_all()
+# str_split(df, 'T', simplify = T) ###splits vector or df (column) at the indicated place, i.e. 'T', and create two columns (via the simplify argument)
+
+```
+# **Manipulating data in date format**
+```{r}
+library(lubridate)
+
+mooc1$date <- ymd(mooc1$unformatted_date) ##changing a column  of a dataset into a date format, other formats are dmy, etc.
+
+mooc1$year <- year(mooc1$date) ##create a year column in the mooc1 dataset
+
+mooc1$month <- month(mooc1$date, label=TRUE) ##create a month column in the mooc1 dataset; The label function returns names rather than numbers for months
+
+daily <-  j17i %>%
+  mutate(
+    Time = ymd_hms(Time)  ##change Time chr string into dateTime object
+    , date = round_date(Time, 'day')  #changes the time object an rounds it into 'days'
+  ) %>%
+  group_by(date) %>% #groups the df by date and aggregates (summarises) new columns into one df
+  summarise(avgCost = mean(Cost, na.rm = T) # creates new columns avg cost, max price and number of ...
+            , maxPrice = max(Price, na.rm = T) #... distinct transactions
+            , transactionQuantity = n_distinct(TransactionNumber)) %>%
+  ungroup()
+```
+
+# **Exporting data**
+```{r}
+##Exporting data
+write.xlsx  ##writes out an Excel file
+toJson()
+ 
+write_rds(mooc1_etl, 'mooc1_etl_done.rds', compress = 'gz')  ##rds files preserves format of columns (CSV does not) and safes space, particularly when using the compress function
+
+Genfirmen$Adressen <- trimws(Genfirmen$GenFirmAdrdf1, which = c("left"))   ##deleting empty spaces before text, in a new column
+
+```
