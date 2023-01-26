@@ -442,6 +442,7 @@ sum(is.na(df$var1))  ##shows how many NAs in a column
 any(is.na(df$var1))  ##are there any NAs - logical statement: T/F
 all(df$var1 > 0)     ##logial statment with answer T/F
 
+df[complete.cases(df),]  ##omits NAs from rows
 
 df2 <- df%>%
   filter(!is.na(Price)) ##filter all NAs from a column
