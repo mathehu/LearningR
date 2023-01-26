@@ -256,6 +256,11 @@ products %>% filter(year==2019, month=='Aug', parent_name=='Cold Dispensed Bever
 
 candy1 <- products %>% filter(parent_name=='Candy/Gum', year!=2017)  ##filter by all years except for 2017
 
+# removing duplicates
+##removing duplicates and keeping the last instance
+dataset[!rev(duplicated(rev(dataset$ID))),]
+dat[ !duplicated(dat[, c("ID", "Date")], fromLast=T),]
+
 ##to order the rows of a data set according to the values of a particular variable
 arrange()  
   select(cran, r_arch:country)   ##select() all columns from size     through ip_id and store the result in cran2
